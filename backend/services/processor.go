@@ -8,7 +8,6 @@ import (
 )
 
 // ProcessCSV reads a CSV from the provided reader and sums sales by city.
-// It skips the header row if present.
 func ProcessCSV(file io.Reader) (*map[string]float64, error) {
 	reader := csv.NewReader(file)
 	citySales := make(map[string]float64)
