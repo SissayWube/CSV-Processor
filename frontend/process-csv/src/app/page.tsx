@@ -52,7 +52,7 @@ const CSVUploader: React.FC = () => {
             } else {
               reject(new Error("No download URL in response."));
             }
-          } catch (err) {
+          } catch {
             reject(new Error("Invalid server response."));
           }
         } else {
@@ -64,90 +64,65 @@ const CSVUploader: React.FC = () => {
         reject(new Error("Network error during upload."));
       });
 
-      xhr.open("POST", "http://localhost:8080/upload");
+      xhr.open("POST", process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080/upload");
       xhr.send(formData);
-    }).catch((err: any) => {
-      setError(err.message || "Error uploading file.");
-      console.error("Upload error:", err);
+    }).catch((err: unknown) => {
+      if (err instanceof Error) {
+        setError(err.message || "Error uploading file.");
+        console.error("Upload error:", err);
+      } else {
+        setError("Error uploading file.");
+        console.error("Upload error:", err);
+      }
     });
 
     setIsUploading(false);
   };
 
   return (
-    <div
-      style={{
-        backgroundColor: "#1a1a1a",
-        border: "1px solid #333",
-        borderRadius: "8px",
-        padding: "2rem",
-        boxShadow: "0 4px 8px rgba(0, 0, 0, 0.4)",
-        maxWidth: "500px",
-        width: "100%",
-        display: "flex",
-        flexDirection: "column",
-        gap: "1.5rem",
-        color: "#f0f0f0",
-      }}
-    >
-      <h2 style={{ fontSize: "1.8rem", marginBottom: "1rem", color: "#61dafb" }}>
+    <div className="bg-gray-900 border border-gray-700 rounded-xl p-8 shadow-lg max-w-md w-full flex flex-col gap-6 text-gray-100">
+      <h2 className="text-2xl font-bold mb-4 text-cyan-400 text-center">
         CSV File Processor
       </h2>
-      <form onSubmit={handleUpload} style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
+      <form
+        onSubmit={handleUpload}
+        className="flex flex-col gap-4"
+      >
         <label
           htmlFor="csvFileInput"
-          style={{
-            display: "block",
-            backgroundColor: "#282c34",
-            border: "2px dashed #61dafb",
-            borderRadius: "5px",
-            padding: "1.5rem",
-            textAlign: "center",
-            cursor: "pointer",
-            transition: "background-color 0.3s ease",
-            fontSize: "1.1rem",
-            color: file ? "#ffffff" : "#cccccc",
-          }}
-          onMouseOver={(e) => (e.currentTarget.style.backgroundColor = "#3a3f47")}
-          onMouseOut={(e) => (e.currentTarget.style.backgroundColor = "#282c34")}
+          className={`block bg-gray-800 border-2 border-dashed border-cyan-400 rounded-lg p-6 text-center cursor-pointer transition-colors ease-in-out duration-300 hover:bg-gray-700 text-lg ${
+            file ? "text-white"  : "text-gray-400"
+          }`}
         >
-          {file ? `Selected: ${file.name}` : "Click or Drag & Drop CSV File Here"}
+          {file
+            ? `Selected: ${file.name}`
+            : "Click or Drag & Drop CSV File Here"}
           <input
             id="csvFileInput"
             type="file"
             accept=".csv,text/csv"
             onChange={handleFileChange}
-            style={{ display: "none" }}
+            className="hidden"
           />
         </label>
 
         {error && (
-          <p style={{ color: "#ff6b6b", fontSize: "0.9rem", textAlign: "center" }}>
+          <p className="text-red-400 text-sm text-center">
             {error}
           </p>
         )}
 
         {isUploading && (
-          <div style={{ width: "100%", textAlign: "center" }}>
-            <p style={{ marginBottom: "0.5rem" }}>
+          <div className="w-full text-center">
+            <p className="mb-2">
               Uploading... {Math.round(uploadProgress)}%
             </p>
             <div
-              style={{
-                width: "100%",
-                backgroundColor: "#282c34",
-                borderRadius: "5px",
-                overflow: "hidden",
-              }}
+              className="w-full bg-gray-800 rounded-full h-2.5 overflow-hidden"
             >
               <div
-                style={{
-                  width: `${uploadProgress}%`,
-                  height: "10px",
-                  backgroundColor: "#61dafb",
-                  borderRadius: "5px",
-                  transition: "width 0.3s ease-in-out",
-                }}
+                className="bg-cyan-400 h-2.5 rounded-full transition-all duration-300 ease-in-out"
+                style={{ width: `${uploadProgress}%` }}
               ></div>
             </div>
           </div>
@@ -156,18 +131,7 @@ const CSVUploader: React.FC = () => {
         <button
           type="submit"
           disabled={!file || isUploading}
-          style={{
-            backgroundColor: isUploading ? "#555" : "#61dafb",
-            color: isUploading ? "#ccc" : "#1a1a1a",
-            border: "none",
-            borderRadius: "5px",
-            padding: "0.8rem 1.5rem",
-            fontSize: "1.1rem",
-            fontWeight: "bold",
-            cursor: isUploading ? "not-allowed" : "pointer",
-            transition: "background-color 0.3s ease",
-            marginTop: "0.5rem",
-          }}
+          className="bg-cyan-400 text-gray-900 font-bold py-3 px-6 rounded-lg text-lg transition-colors ease-in-out mt-2 disabled:bg-gray-600 disabled:text-gray-400 disabled:cursor-not-allowed hover:bg-cyan-300"
         >
           {isUploading ? "Uploading..." : "Upload & Process"}
         </button>
@@ -177,19 +141,8 @@ const CSVUploader: React.FC = () => {
         <a
           href={downloadUrl}
           target="_blank"
-          rel="noopener noreferrer"
-          style={{
-            marginTop: "1rem",
-            display: "inline-block",
-            backgroundColor: "#61dafb",
-            color: "#1a1a1a",
-            padding: "0.8rem 1.5rem",
-            borderRadius: "5px",
-            fontWeight: "bold",
-            textDecoration: "none",
-            textAlign: "center",
-            transition: "background-color 0.3s",
-          }}
+          rel="noopener noreferrer" // Added for security
+          className="mt-4 inline-block bg-cyan-400 text-gray-900 py-3 px-6 rounded-lg font-bold no-underline text-center transition-colors duration-300 hover:bg-cyan-300"
         >
           Download Processed CSV
         </a>
@@ -200,24 +153,8 @@ const CSVUploader: React.FC = () => {
 
 export default function Home() {
   return (
-    <div
-      style={{
-        backgroundColor: "#000000",
-        minHeight: "100vh",
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        padding: "2rem",
-        fontFamily: "sans-serif",
-      }}
-    >
-      <main style={{
-        display: "flex",
-        flexDirection: "column",
-        alignItems: "center",
-        gap: "2rem",
-        width: "100%"
-      }}>
+    <div className="bg-black min-h-screen flex items-center justify-center p-8 font-sans">
+      <main className="flex flex-col items-center gap-8 w-full">
         <CSVUploader />
       </main>
     </div>
