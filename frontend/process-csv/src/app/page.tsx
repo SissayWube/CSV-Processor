@@ -33,40 +33,42 @@ const CSVUploader: React.FC = () => {
 
     const xhr = new XMLHttpRequest();
 
-    await new Promise<void>((resolve, reject) => {
-      xhr.upload.addEventListener("progress", (event) => {
-        if (event.lengthComputable) {
-          const percentComplete = (event.loaded / event.total) * 100;
-          setUploadProgress(percentComplete);
-        }
-      });
-
-      xhr.addEventListener("load", () => {
-        if (xhr.status >= 200 && xhr.status < 300) {
-          try {
-            const response = JSON.parse(xhr.responseText);
-            if (response.download_url) {
-              setDownloadUrl(response.download_url);
-              setFile(null);
-              resolve();
-            } else {
-              reject(new Error("No download URL in response."));
-            }
-          } catch {
-            reject(new Error("Invalid server response."));
+    try {
+      await new Promise<void>((resolve, reject) => {
+        xhr.upload.addEventListener("progress", (event) => {
+          if (event.lengthComputable) {
+            const percentComplete = (event.loaded / event.total) * 100;
+            setUploadProgress(percentComplete);
           }
-        } else {
-          reject(new Error(`Upload failed: ${xhr.status} - ${xhr.statusText}`));
-        }
-      });
+        });
 
-      xhr.addEventListener("error", () => {
-        reject(new Error("Network error during upload."));
-      });
+        xhr.addEventListener("load", () => {
+          if (xhr.status >= 200 && xhr.status < 300) {
+            try {
+              const response = JSON.parse(xhr.responseText);
+              if (response.download_url) {
+                setDownloadUrl(response.download_url);
+                setFile(null);
+                resolve();
+              } else {
+                reject(new Error("No download URL in response."));
+              }
+            } catch {
+              reject(new Error("Invalid server response."));
+            }
+          } else {
+            reject(new Error(`Upload failed: ${xhr.status} - ${xhr.statusText}`));
+          }
+        });
 
-      xhr.open("POST", process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080/upload");
-      xhr.send(formData);
-    }).catch((err: unknown) => {
+        xhr.addEventListener("error", () => {
+          reject(new Error("Network error during upload."));
+        });
+
+        xhr.open("POST", process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080/upload");
+        xhr.send(formData);
+      });
+    } catch (err: unknown) {
       if (err instanceof Error) {
         setError(err.message || "Error uploading file.");
         console.error("Upload error:", err);
@@ -74,9 +76,9 @@ const CSVUploader: React.FC = () => {
         setError("Error uploading file.");
         console.error("Upload error:", err);
       }
-    });
-
-    setIsUploading(false);
+    } finally {
+      setIsUploading(false);
+    }
   };
 
   return (
@@ -113,7 +115,8 @@ const CSVUploader: React.FC = () => {
         )}
 
         {isUploading && (
-          <div className="w-full text-center">
+          <div className="w-full text-center flex flex-col items-center gap-2">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-cyan-400"></div>
             <p className="mb-2">
               Uploading... {Math.round(uploadProgress)}%
             </p>
