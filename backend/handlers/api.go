@@ -94,14 +94,18 @@ func UploadCSV(c *gin.Context) {
 // DownloadCSV handles the HTTP GET request for downloading a processed CSV file.
 func DownloadCSV(c *gin.Context) {
 	filename := c.Param("filename")
-
 	// Sanitize the filename to prevent directory traversal vulnerabilities.
 	filePath, err := filepath.Abs(filepath.Join(ProcessedFilesDir, filename))
 	if err != nil {
 		c.String(http.StatusInternalServerError, "Internal server error")
 		return
 	}
-	if !strings.HasPrefix(filePath, ProcessedFilesDir) {
+	absProcessedDir, err := filepath.Abs(ProcessedFilesDir)
+	if err != nil {
+		c.String(http.StatusInternalServerError, "Internal server error")
+		return
+	}
+	if !strings.HasPrefix(filePath, absProcessedDir) {
 		c.String(http.StatusBadRequest, "Invalid filename")
 		return
 	}
