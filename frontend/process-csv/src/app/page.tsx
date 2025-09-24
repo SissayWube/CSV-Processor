@@ -1,5 +1,5 @@
 "use client";
-import React, { useState } from "react";
+import React, { useState, useRef } from "react";
 
 const CSVUploader: React.FC = () => {
   const [file, setFile] = useState<File | null>(null);
@@ -7,6 +7,7 @@ const CSVUploader: React.FC = () => {
   const [uploadProgress, setUploadProgress] = useState(0);
   const [error, setError] = useState<string | null>(null);
   const [downloadUrl, setDownloadUrl] = useState<string | null>(null);
+  const inputRef = useRef<HTMLInputElement | null>(null);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files.length > 0) {
@@ -49,6 +50,9 @@ const CSVUploader: React.FC = () => {
               if (response.download_url) {
                 setDownloadUrl(response.download_url);
                 setFile(null);
+                if (inputRef.current) {
+                  inputRef.current.value = "";
+                }
                 resolve();
               } else {
                 reject(new Error("No download URL in response."));
@@ -92,19 +96,19 @@ const CSVUploader: React.FC = () => {
       >
         <label
           htmlFor="csvFileInput"
-          className={`block bg-gray-800 border-2 border-dashed border-cyan-400 rounded-lg p-6 text-center cursor-pointer transition-colors ease-in-out duration-300 hover:bg-gray-700 text-lg ${
-            file ? "text-white"  : "text-gray-400"
-          }`}
+          className={`block bg-gray-800 border-2 border-dashed border-cyan-400 rounded-lg p-6 text-center cursor-pointer transition-colors ease-in-out duration-300 hover:bg-gray-700 text-lg ${file ? "text-white" : "text-gray-400"
+            }`}
         >
           {file
             ? `Selected: ${file.name}`
-            : "Click or Drag & Drop CSV File Here"}
+            : "Click to upload the CSV file"}
           <input
             id="csvFileInput"
             type="file"
             accept=".csv,text/csv"
             onChange={handleFileChange}
             className="hidden"
+            ref={inputRef}
           />
         </label>
 
