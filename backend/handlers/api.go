@@ -4,7 +4,6 @@ package handlers
 import (
 	"csv_processor/services"
 	"fmt"
-	"log"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -22,7 +21,7 @@ const clientOrigin = "http://localhost:3000"
 const serverBaseURL = "http://localhost:8080"
 
 // Define the directory where processed files are stored.
-const processedFilesDir = "/home/sissay/Desktop/CSV-Processor/backend/processed_files"
+const ProcessedFilesDir = "/home/sissay/Desktop/CSV-Processor/backend/processed_files"
 
 // SetupRouter initializes and configures the Gin router with necessary middleware and routes.
 func SetupRouter() *gin.Engine {
@@ -49,67 +48,47 @@ func SetupRouter() *gin.Engine {
 
 // UploadCSV handles the HTTP POST request for uploading a CSV file.
 func UploadCSV(c *gin.Context) {
-	// Retrieve the uploaded file from the form data.
 	file, err := c.FormFile("csv_file")
 	if err != nil {
-		log.Printf("Error getting form file: %v", err)
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Could not get uploaded file."})
+		c.JSON(400, gin.H{"error": "Could not get uploaded file."})
 		return
 	}
 
-	// Validate that the uploaded file is indeed a CSV.
-	if file.Header.Get("Content-Type") != "text/csv" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid file type. Please upload a CSV file."})
-		return
-	}
-
-	// Open the uploaded file for reading.
 	uploadedFile, err := file.Open()
 	if err != nil {
-		log.Printf("Could not open uploaded file: %v", err)
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Could not process uploaded file."})
+		c.JSON(500, gin.H{"error": fmt.Sprintf("Could not open uploaded file: %v", err)})
 		return
 	}
-	defer uploadedFile.Close() // Ensure the file is closed after processing.
+	defer uploadedFile.Close()
 
-	// Process the CSV file content using the business logic in the services package.
 	totalSales, err := services.ProcessCSV(uploadedFile)
 	if err != nil {
-		log.Printf("Error processing CSV file: %v", err)
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Error processing CSV file."})
+		c.JSON(500, gin.H{"error": fmt.Sprintf("Error processing file: %v", err)})
 		return
 	}
 
-	// Generate a unique filename for the processed result to avoid naming conflicts.
+	// Ensure the processed files directory exists
+	if err := os.MkdirAll(ProcessedFilesDir, 0755); err != nil {
+		c.JSON(500, gin.H{"error": "Could not create processed files directory"})
+		return
+	}
+
 	resultFileName := fmt.Sprintf("city_sales_%d.csv", time.Now().UnixNano())
-
-	// Ensure the directory exists.
-	if err := os.MkdirAll(processedFilesDir, 0755); err != nil {
-		log.Printf("Could not create directory for processed files: %v", err)
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Could not set up storage for processed files."})
-		return
-	}
-	resultFilePath := filepath.Join(processedFilesDir, resultFileName)
-
-	// Create the output file to store the processed CSV data.
+	resultFilePath := filepath.Join(ProcessedFilesDir, resultFileName)
 	outFile, err := os.Create(resultFilePath)
 	if err != nil {
-		log.Printf("Could not create result file: %v", err)
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Could not create result file."})
+		c.JSON(500, gin.H{"error": "Could not create result file"})
 		return
 	}
-	defer outFile.Close() // Ensure the output file is closed.
+	defer outFile.Close()
 
-	// Write the processed sales data to the output CSV file.
 	if err := services.WriteCitySalesCSV(*totalSales, outFile); err != nil {
-		log.Printf("Error writing processed CSV: %v", err)
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Error generating result CSV."})
+		c.JSON(500, gin.H{"error": "Error generating CSV"})
 		return
 	}
 
-	// Construct the download URL for the processed file.
-	downloadURL := fmt.Sprintf("%s/download/%s", serverBaseURL, resultFileName)
-	c.JSON(http.StatusOK, gin.H{"download_url": downloadURL})
+	downloadURL := serverBaseURL + "/download/" + resultFileName
+	c.JSON(200, gin.H{"download_url": downloadURL})
 }
 
 // DownloadCSV handles the HTTP GET request for downloading a processed CSV file.
@@ -117,14 +96,15 @@ func DownloadCSV(c *gin.Context) {
 	filename := c.Param("filename")
 
 	// Sanitize the filename to prevent directory traversal vulnerabilities.
-
-	if strings.Contains(filename, "..") || strings.ContainsRune(filename, os.PathSeparator) {
+	filePath, err := filepath.Abs(filepath.Join(ProcessedFilesDir, filename))
+	if err != nil {
+		c.String(http.StatusInternalServerError, "Internal server error")
+		return
+	}
+	if !strings.HasPrefix(filePath, ProcessedFilesDir) {
 		c.String(http.StatusBadRequest, "Invalid filename")
 		return
 	}
-
-	// Construct the full path to the file.
-	filePath := filepath.Join(processedFilesDir, filename)
 
 	// Serve the file for download.
 	c.FileAttachment(filePath, filename)
